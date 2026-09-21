@@ -475,6 +475,15 @@
 	vref-supply = <&vddao_1v8>;
 };
 
+/*
+ * MT7663 WiFi/BT SDIO controller.
+ *
+ * Changes vs. original DTS:
+ *   - sd-uhs-ddr50  ->  sd-uhs-sdr50     (MT7663 does not reliably support DDR50)
+ *   - max-frequency 50000000 -> 25000000 (lower clock improves signal integrity)
+ *   - add post-power-on-delay-ms = <300> (MT7663 needs ~300ms after power-up)
+ *   - add disable-wp                     (not needed on non-removable SDIO)
+ */
 &sd_emmc_a {
 	status = "okay";
 	pinctrl-0 = <&sdio_pins>;
@@ -484,11 +493,20 @@
 	#size-cells = <0>;
 
 	bus-width = <4>;
-	max-frequency = <50000000>;
 	cap-sdio-irq;
 	cap-sd-highspeed;
+
+	/* MT7663 official recommendation: SDR50, not DDR50 */
+	sd-uhs-sdr50;
+
+	/* Lower clock for stability on G12B SDIO-A controller */
+	max-frequency = <25000000>;
+
+	/* MT7663 requires ~300ms settling time after power-up */
+	post-power-on-delay-ms = <300>;
+
 	non-removable;
-	sd-uhs-ddr50;
+	disable-wp;
 
 	/* WiFi firmware requires power in suspend */
 	keep-power-in-suspend;
