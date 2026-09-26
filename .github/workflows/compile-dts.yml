@@ -1,0 +1,76 @@
+name: Compile & Validate Repository DTB
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '**.dts'
+      - '**.dtsi'
+
+jobs:
+  compile-dtb:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Build Toolchains
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y device-tree-compiler gcc-aarch64-linux-gnu wget
+
+      - name: Fetch Kernel Mainline Headers
+        run: |
+          mkdir -p include/dt-bindings
+          # 自动下发拉取官方 Linux 稳定版内核针对 Meson 平台的头文件，解决 C 预处理器 include 依赖问题
+          RAW_URL="https://githubusercontent.com"
+          
+          # 下载核心绑定映射头文件
+          wget -q ${RAW_URL}/include/dt-bindings/input/input.h -O include/dt-bindings/input.h
+          wget -q ${RAW_URL}/include/dt-bindings/leds/common.h -O include/dt-bindings/common.h
+          
+          # 下载 Amlogic Meson 专属平台引脚与时钟绑定头文件
+          wget -q ${RAW_URL}/include/dt-bindings/gpio/meson-g12a-gpio.h -O include/dt-bindings/meson-g12a-gpio.h
+          wget -q ${RAW_URL}/include/dt-bindings/sound/meson-g12a-toacodec.h -O include/dt-bindings/meson-g12a-toacodec.h
+          wget -q ${RAW_URL}/include/dt-bindings/sound/meson-g12a-tohdmitx.h -O include/dt-bindings/meson-g12a-tohdmitx.h
+          
+          # 下载底层芯片母本 dtsi
+          wget -q ${RAW_URL}/arch/arm64/boot/dts/amlogic/meson-g12b-a311d.dtsi -O include/meson-g12b-a311d.dtsi
+          wget -q ${RAW_URL}/arch/arm64/boot/dts/amlogic/meson-g12b.dtsi -O include/meson-g12b.dtsi
+          wget -q ${RAW_URL}/arch/arm64/boot/dts/amlogic/meson-g12-common.dtsi -O include/meson-g12-common.dtsi
+
+      - name: Search and Locate Local DTS
+        id: locate-dts
+        run: |
+          # 自动检索仓库内用户上传的 xiaoyi-pro 目标设备树源码位置，无需硬编码路径
+          DTS_PATH=$(find . -name "*xiaoyi*.dts" -print -quit)
+          if [ -z "$DTS_PATH" ]; then
+            echo "❌ Error: Cannot find any DTS file matching *xiaoyi*.dts in repository."
+            exit 1
+          fi
+          echo "Found DTS source file at: $DTS_PATH"
+          echo "dts_path=$DTS_PATH" >> $GITHUB_OUTPUT
+
+      - name: Preprocess Device Tree Source
+        run: |
+          # 动态链接本地预处理器，将仓库内的源码与下载回来的 mainline 标准头文件进行合流交叉编译预处理
+          DTS_FILE="${{ steps.locate-dts.outputs.dts_path }}"
+          aarch64-linux-gnu-gcc -E -nostdinc -Iinclude -I$(dirname "$DTS_FILE") -x assembler-with-cpp \
+            -undef -D__DTS__ "$DTS_FILE" -o processed_xiaoyi_pro.dts
+
+      - name: Hard Check & Compile to DTB
+        run: |
+          # 执行内核级 DTC 指令，硬性封包为二进制 dtb 并执行静态错误扫尾
+          dtc -I dts -O dtb -p 2048 \
+            -W no-unit_address_vs_reg \
+            -W no-avoid_default_addr_size \
+            -o meson-g12b-a311d-xiaoyi-pro.dtb processed_xiaoyi_pro.dts
+
+      - name: Archive and Upload Artifact
+        uses: actions/artifacts@v4
+        with:
+          name: XiaoYi-Pro-Optimized-DTB
+          path: meson-g12b-a311d-xiaoyi-pro.dtb
+          if-no-files-found: error
