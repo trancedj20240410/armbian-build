@@ -1,13 +1,7 @@
-name: Compile & Validate Repository DTB
+name: a311ds DTB
 
 on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - '**.dts'
-      - '**.dtsi'
+  workflow_dispatch: # 🌟 核心修正：移除 push 触发器，改为纯粹的手动触发
 
 jobs:
   compile-dtb:
@@ -39,7 +33,7 @@ jobs:
       - name: Locate Target DTS
         id: locate-dts
         run: |
-          # 🎯 精确硬匹配你的专属新文件名，确保工作流只编译此源码，旁路其它同名干扰
+          # 🎯 精确硬匹配你的专属新文件名
           DTS_PATH=$(find . -name "meson-g12b-a311ds-cainiao-xiaoyi-pros.dts" -print -quit)
           if [ -z "$DTS_PATH" ]; then
             echo "❌ Error: Cannot find meson-g12b-a311ds-cainiao-xiaoyi-pros.dts in repository."
