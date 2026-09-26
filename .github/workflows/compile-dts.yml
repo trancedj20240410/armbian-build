@@ -17,14 +17,17 @@ jobs:
 
       - name: Fetch and Extract Kernel 6.6 LTS Stable Headers
         run: |
-          mkdir -p include/dt-bindings include/amlogic
-          
+          mkdir -p include include/amlogic
+
           wget https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.6.157.tar.xz
           tar -xf linux-6.6.157.tar.xz
-          
-          cp -r linux-6.6.157/include/dt-bindings/* include/dt-bindings/
+
+          # 完整搬运内核 include（包含 dt-bindings 与 uapi）
+          cp -r linux-6.6.157/include/* include/
+
+          # 搬运整个 Amlogic DTS 目录，避免 dtsi 依赖断链
           cp -r linux-6.6.157/arch/arm64/boot/dts/amlogic/* include/amlogic/
-          
+
           rm -rf linux-6.6.157*
 
       - name: Locate Target DTS
@@ -41,9 +44,10 @@ jobs:
       - name: Preprocess Device Tree Source
         run: |
           DTS_FILE="${{ steps.locate-dts.outputs.dts_path }}"
-          
+
           aarch64-linux-gnu-gcc -E -nostdinc \
             -Iinclude \
+            -Iinclude/uapi \
             -Iinclude/amlogic \
             -I$(dirname "$DTS_FILE") \
             -x assembler-with-cpp \
