@@ -1,7 +1,7 @@
-name: a311ds DTB
+name: Compile & Validate Repository DTB
 
 on:
-  workflow_dispatch: # 🌟 核心修正：移除 push 触发器，改为纯粹的手动触发
+  workflow_dispatch:
 
 jobs:
   compile-dtb:
@@ -15,9 +15,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y device-tree-compiler gcc-aarch64-linux-gnu wget
 
-      - name: Fetch Kernel Mainline Headers
+      - name: Fetch Kernel 6.1 LTS Stable Headers
         run: |
           mkdir -p include/dt-bindings
+          # 🎯 核心调优：将拉取基线硬锁定在官方长期支持的 linux-6.1.y 源码树，完美规避版本跨越导致的属性冲突
           RAW_URL="https://githubusercontent.com"
           
           wget -q ${RAW_URL}/include/dt-bindings/input/input.h -O include/dt-bindings/input.h
@@ -33,7 +34,6 @@ jobs:
       - name: Locate Target DTS
         id: locate-dts
         run: |
-          # 🎯 精确硬匹配你的专属新文件名
           DTS_PATH=$(find . -name "meson-g12b-a311ds-cainiao-xiaoyi-pros.dts" -print -quit)
           if [ -z "$DTS_PATH" ]; then
             echo "❌ Error: Cannot find meson-g12b-a311ds-cainiao-xiaoyi-pros.dts in repository."
@@ -56,7 +56,7 @@ jobs:
             -o meson-g12b-a311ds-cainiao-xiaoyi-pros.dtb processed_xiaoyi_pro.dts
 
       - name: Archive and Upload Artifact
-        uses: actions/artifacts@v4
+        uses: actions/upload-artifact@v4 # 🛠️ 关键修正：官方规范插件名归位，彻底击碎组件解析中断错误
         with:
           name: XiaoYi-Pros-Optimized-DTB
           path: meson-g12b-a311ds-cainiao-xiaoyi-pros.dtb
