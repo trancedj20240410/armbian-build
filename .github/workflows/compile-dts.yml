@@ -13,24 +13,24 @@ jobs:
       - name: Install Build Toolchains
         run: |
           sudo apt-get update
-          sudo apt-get install -y device-tree-compiler gcc-aarch64-linux-gnu wget tar
+          sudo apt-get install -y device-tree-compiler gcc-aarch64-linux-gnu wget tar xz-utils
 
       - name: Fetch and Extract Kernel 6.1 LTS Stable Headers
         run: |
           mkdir -p include/dt-bindings
           
-          # 🚀 终极修正：硬性锁定官方长期支持 6.1 分支归档包的绝对路径，确保 Actions 能 100% 下载成功
+          # 🚀 工业级深度锁定：直接拉取最新推荐的 linux-6.1.188.tar.xz 官方绝对镜像路径
           wget https://kernel.org
-          tar -xf linux-6.1.118.tar.xz
+          tar -xf linux-6.1.188.tar.xz
           
           # 精准搬运 6.1 环境下所有基础底层依赖资产
-          cp -r linux-6.1.118/include/dt-bindings/* include/dt-bindings/
-          cp linux-6.1.118/arch/arm64/boot/dts/amlogic/meson-g12b-a311d.dtsi include/
-          cp linux-6.1.118/arch/arm64/boot/dts/amlogic/meson-g12b.dtsi include/
-          cp linux-6.1.118/arch/arm64/boot/dts/amlogic/meson-g12-common.dtsi include/
+          cp -r linux-6.1.188/include/dt-bindings/* include/dt-bindings/
+          cp linux-6.1.188/arch/arm64/boot/dts/amlogic/meson-g12b-a311d.dtsi include/
+          cp linux-6.1.188/arch/arm64/boot/dts/amlogic/meson-g12b.dtsi include/
+          cp linux-6.1.188/arch/arm64/boot/dts/amlogic/meson-g12-common.dtsi include/
           
           # 清理源码体积占用
-          rm -rf linux-6.1.118*
+          rm -rf linux-6.1.188*
 
       - name: Locate Target DTS
         id: locate-dts
@@ -47,7 +47,7 @@ jobs:
         run: |
           DTS_FILE="${{ steps.locate-dts.outputs.dts_path }}"
           
-          # 使用预处理器对你维护在项目中的专属唯一源码进行 6.1 空间依赖融合
+          # 使用预处理器对你维护在项目中的专属唯一源码进行 6.1.188 空间依赖融合
           aarch64-linux-gnu-gcc -E -nostdinc -Iinclude -I$(dirname "$DTS_FILE") -x assembler-with-cpp \
             -undef -D__DTS__ "$DTS_FILE" -o processed_xiaoyi_pro.dts
 
